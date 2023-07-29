@@ -1,7 +1,7 @@
 from setuptools import setup
 
 setup(name='nec_beamer',
-      version='0.1.3',
+      version='0.1.4',
       description='NEC Beamer Web Interface Wrapper',
       url='https://github.com/heinrich-foto/nec_beamer',
       author='Heinrich-Foto',
