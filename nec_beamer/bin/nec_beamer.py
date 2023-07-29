@@ -1,5 +1,13 @@
+import logging
+
 import click
-from .nec_beamer import Nec_Beamer
+from ..nec_beamer import Nec_Beamer
+
+# Default values for the NEC Beamer
+NAME="NEC Beamer"
+IP_ADDRESS="192.168.0.175"
+
+_logger = logging.getLogger("nec_beamer")
 
 @click.command()
 @click.option("--ip_address", default=IP_ADDRESS, help="IP Address of the Beamer")

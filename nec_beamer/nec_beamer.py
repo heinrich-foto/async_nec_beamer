@@ -6,7 +6,6 @@ import json as json_lib
 import requests
 
 _logger = logging.getLogger("nec_beamer")
-
 # Default values for the NEC Beamer
 NAME="NEC Beamer"
 IP_ADDRESS="192.168.0.175"
