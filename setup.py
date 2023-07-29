@@ -8,4 +8,7 @@ setup(name='nec_beamer',
       author_email='nec_beamer@heinrich-foto.de',
       license='MIT',
       packages=['nec_beamer_heinrich_foto'],
-      zip_safe=False)
+      zip_safe=False,
+      long_description=open('README.md').read(),
+      long_description_content_type='text/markdown',
+      )
