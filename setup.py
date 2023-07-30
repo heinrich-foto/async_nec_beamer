@@ -1,19 +1,19 @@
 from setuptools import setup
 
-setup(name='nec_beamer',
+setup(name='async_nec_beamer',
       version='0.1.4',
-      description='NEC Beamer Web Interface Wrapper',
-      url='https://github.com/heinrich-foto/nec_beamer',
+      description='NEC Beamer Web Interface Wrapper (Async)',
+      url='https://github.com/heinrich-foto/async_nec_beamer',
       author='Heinrich-Foto',
-      author_email='nec_beamer@heinrich-foto.de',
+      author_email='async_nec_beamer@heinrich-foto.de',
       license='MIT',
-      packages=['nec_beamer'],
+      packages=['async_nec_beamer'],
       install_requires=[
-          'requests',
+          'aiohttp[speedups]',
           'click'
       ],
       zip_safe=False,
-      scripts=['bin/nec_beamer'],
+      scripts=['bin/async_nec_beamer'],
       long_description=open('README.md').read(),
       long_description_content_type='text/markdown',
       )

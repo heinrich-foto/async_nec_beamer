@@ -4,12 +4,14 @@ import logging
 from datetime import datetime
 import json as json_lib
 
-import requests
+import aiohttp
+import asyncio
 
-_logger = logging.getLogger("nec_beamer")
+_logger = logging.getLogger("async_nec_beamer")
 # Default values for the NEC Beamer
-NAME="NEC Beamer"
-IP_ADDRESS="192.168.0.175"
+NAME = "NEC Beamer"
+IP_ADDRESS = "192.168.0.175"
+
 
 class Nec_Beamer:
     def __init__(self, ip_address, name) -> None:
@@ -80,7 +82,7 @@ class Nec_Beamer:
 
         # self.update()
 
-    def __send_command(self, command):
+    async def __send_command(self, command) -> aiohttp.ClientResponse:
         if command not in self._commands:
             _logger.error(f"Command %s not found", command)
             return
@@ -89,63 +91,60 @@ class Nec_Beamer:
         url = f"http://{self._ip_address}{command}"
         _logger.info(f"with this URL: %s", url)
 
-        try:
-            response = requests.get(url, timeout=5)
-            _logger.debug(f"Response from NEC Beamer: %s", response.text)
+        async with aiohttp.ClientSession() as session:
+            async with session.get(url) as response:
+                print("Status:", response.status)
+                print("Content-type:", response.headers['content-type'])
 
-        except requests.exceptions.RequestException as e:
-            _logger.error(f"Error sending command to NEC Beamer: %s", e)
-            self._is_available = False
-            # create a object with status_code 500 to return
-            response = requests.models.Response()
-            response.status_code = 500
-            return response
-            # return {"status_code": 500}
+                html = await response.text()
+        # response = requests.get(url, timeout=5)
+                _logger.debug(f"Response from NEC Beamer: %s", html[:15])
+
         self._is_available = True
         _logger.debug(f"set is_available to %s", self._is_available)
         return response
 
-    def __check_response_status_and_update(self, response):
-        if response.status_code != 200:
+    async def __check_response_status_and_update(self, response):
+        if response.status != 200:
             _logger.error(
-                f"Error sending command to NEC Beamer: %s", response.status_code
+                f"Error sending command to NEC Beamer: %s", response.status
             )
             return False
-
-        if "power_on_b.gif" and "power_off_g.gif" in response.text:
+        html = await response.text()
+        if "power_on_b.gif" and "power_off_g.gif" in html:
             self._is_on = False
-        elif "power_on_g.gif" and "power_off_b.gif" in response.text:
+        elif "power_on_g.gif" and "power_off_b.gif" in html:
             self._is_on = True
         else:
-            _logger.error(f"Error updating NEC Beamer: %s", response.status_code)
+            _logger.error(f"Error updating NEC Beamer: %s", response.status)
             return False
 
         # parse response.text for lamp life remaining, lamp hours, filter hours, projector hours used
         # get line from response.text that contains "top.statusF.document.stat.textfield.value= and extract the value
 
-        if "top.statusF.document.stat.textfield.value=" in response.text:
-            self._lamp_life_remaining = response.text.split(
+        if "top.statusF.document.stat.textfield.value=" in html:
+            self._lamp_life_remaining = html.split(
                 "top.statusF.document.stat.textfield.value="
             )[1].split(";")[0]
 
         # get line from response.text that contains "top.statusF.document.stat.textfield2.value= and extract the value
 
-        if "top.statusF.document.stat.textfield2.value=" in response.text:
-            self._lamp_hours = response.text.split(
+        if "top.statusF.document.stat.textfield2.value=" in html:
+            self._lamp_hours = html.split(
                 "top.statusF.document.stat.textfield2.value="
             )[1].split(";")[0]
 
         # get line from response.text that contains "top.statusF.document.stat.textfield4.value= and extract the value
 
-        if "top.statusF.document.stat.textfield4.value=" in response.text:
-            self._filter_hours = response.text.split(
+        if "top.statusF.document.stat.textfield4.value=" in html:
+            self._filter_hours = html.split(
                 "top.statusF.document.stat.textfield4.value="
             )[1].split(";")[0]
 
         # get line from response.text that contains "top.statusF.document.stat.textfield6.value= and extract the value
 
-        if "top.statusF.document.stat.textfield6.value=" in response.text:
-            self._projektor_hours_used = response.text.split(
+        if "top.statusF.document.stat.textfield6.value=" in html:
+            self._projektor_hours_used = html.split(
                 "top.statusF.document.stat.textfield6.value="
             )[1].split(";")[0]
 
@@ -187,34 +186,35 @@ class Nec_Beamer:
     def is_available(self):
         return self._is_available
 
-    def turn_on(self):
-        response = self.__send_command("power_on")
+    async def turn_on(self):
+        response = await self.__send_command("power_on")
+        _logger.debug(f"Response from NEC Beamer: %s", response)
 
-        if response.status_code == 200:
+        if response.status == 200:
             self._is_on = True
         else:
             self._is_on = False
-            _logger.error(f"Error turning on NEC Beamer: %s", response.status_code)
+            _logger.error(f"Error turning on NEC Beamer: %s", response.status)
 
-    def turn_off(self):
-        response = self.__send_command("power_off")
+    async def turn_off(self):
+        response = await self.__send_command("power_off")
 
-        if response.status_code == 200:
+        if response.status == 200:
             self._is_on = False
         else:
             self._is_on = True
-            _logger.error(f"Error turning off NEC Beamer: %s", response.status_code)
+            _logger.error(f"Error turning off NEC Beamer: %s", response.status)
 
 #    @Throttle(MIN_TIME_BETWEEN_UPDATES)
-    def update(self):
-        response = self.__send_command("update")
+    async def update(self):
+        response = await self.__send_command("update")
         try:
-            if response.status_code == 200:
-                self.__check_response_status_and_update(response)
+            if response.status == 200:
+                await self.__check_response_status_and_update(response)
             else:
                 self._is_on = False
                 self._is_available = False
-                _logger.error(f"Error updating NEC Beamer: %s", response.status_code)
+                _logger.error(f"Error updating NEC Beamer: %s", response.status)
         except AttributeError as e:
             self._is_on = False
             self._is_available = False
@@ -238,59 +238,59 @@ class Nec_Beamer:
     def projektor_hours_used(self):
         return self._projektor_hours_used
 
-    def source_rgb1(self):
-        response = self.__send_command("source_rgb1")
+    async def source_rgb1(self):
+        response = await self.__send_command("source_rgb1")
 
-    def source_rgb2(self):
-        response = self.__send_command("source_rgb2")
+    async def source_rgb2(self):
+        response = await self.__send_command("source_rgb2")
 
-    def source_rgb3(self):
-        response = self.__send_command("source_rgb3")
+    async def source_rgb3(self):
+        response = await self.__send_command("source_rgb3")
 
-    def source_comp(self):
-        response = self.__send_command("source_comp")
+    async def source_comp(self):
+        response = await self.__send_command("source_comp")
 
-    def source_vidn(self):
-        response = self.__send_command("source_vidn")
+    async def source_vidn(self):
+        response = await self.__send_command("source_vidn")
 
-    def source_svid(self):
-        response = self.__send_command("source_svid")
+    async def source_svid(self):
+        response = await self.__send_command("source_svid")
 
-    def source_view(self):
-        response = self.__send_command("source_view")
+    async def source_view(self):
+        response = await self.__send_command("source_view")
 
-    def source_lann(self):
-        response = self.__send_command("source_lann")
+    async def source_lann(self):
+        response = await self.__send_command("source_lann")
 
-    def bri_up(self):
-        response = self.__send_command("bri_up")
+    async def bri_up(self):
+        response = await self.__send_command("bri_up")
 
-    def cnt_up(self):
-        response = self.__send_command("cnt_up")
+    async def cnt_up(self):
+        response = await self.__send_command("cnt_up")
 
-    def col_up(self):
-        response = self.__send_command("col_up")
+    async def col_up(self):
+        response = await self.__send_command("col_up")
 
-    def hue_up(self):
-        response = self.__send_command("hue_up")
+    async def hue_up(self):
+        response = await self.__send_command("hue_up")
 
-    def shp_up(self):
-        response = self.__send_command("shp_up")
+    async def shp_up(self):
+        response = await self.__send_command("shp_up")
 
-    def bri_dw(self):
-        response = self.__send_command("bri_dw")
+    async def bri_dw(self):
+        response = await self.__send_command("bri_dw")
 
-    def cnt_dw(self):
-        response = self.__send_command("cnt_dw")
+    async def cnt_dw(self):
+        response = await self.__send_command("cnt_dw")
 
-    def col_dw(self):
-        response = self.__send_command("col_dw")
+    async def col_dw(self):
+        response = await self.__send_command("col_dw")
 
-    def hue_dw(self):
-        response = self.__send_command("hue_dw")
+    async def hue_dw(self):
+        response = await self.__send_command("hue_dw")
 
-    def shp_dw(self):
-        response = self.__send_command("shp_dw")
+    async def shp_dw(self):
+        response = await self.__send_command("shp_dw")
 
     def __repr__(self) -> str:
         return f"Nec_Beamer({self._ip_address}, {self._name})"

@@ -1,15 +1,15 @@
 #!/usr/bin/env python
-
+import asyncio
 import logging
 
 import click
-from nec_beamer import Nec_Beamer
+from async_nec_beamer import Nec_Beamer
 
 # Default values for the NEC Beamer
-NAME="NEC Beamer"
-IP_ADDRESS="192.168.0.175"
+NAME = "NEC Beamer"
+IP_ADDRESS = "192.168.0.175"
 
-_logger = logging.getLogger("nec_beamer")
+_logger = logging.getLogger("async_nec_beamer")
 
 @click.command()
 @click.option("--ip_address", default=IP_ADDRESS, help="IP Address of the Beamer")
@@ -18,8 +18,8 @@ _logger = logging.getLogger("nec_beamer")
 def turn_on(ip_address, name, json):
     """Turn on the Beamer"""
     nec = Nec_Beamer(name=name, ip_address=ip_address)
-    nec.turn_on()
-    nec.update()
+    asyncio.run(nec.turn_on())
+    asyncio.run(nec.update())
     nec.print_status(json)
 
 
@@ -30,8 +30,8 @@ def turn_on(ip_address, name, json):
 def turn_off(ip_address, name, json):
     """Turn off the Beamer"""
     nec = Nec_Beamer(name=name, ip_address=ip_address)
-    nec.turn_off()
-    nec.update()
+    asyncio.run(nec.turn_off())
+    asyncio.run(nec.update())
     nec.print_status(json)
 
 
@@ -42,8 +42,8 @@ def turn_off(ip_address, name, json):
 def rgb1(ip_address, name, json):
     """Select input rgb1 (VGA)"""
     nec = Nec_Beamer(name=name, ip_address=ip_address)
-    nec.source_rgb1()
-    nec.update()
+    asyncio.run(nec.source_rgb1())
+    asyncio.run(nec.update())
     nec.print_status(json)
 
 @click.command()
@@ -53,8 +53,8 @@ def rgb1(ip_address, name, json):
 def rgb2(ip_address, name, json):
     """Select input rgb2 (BNC)"""
     nec = Nec_Beamer(name=name, ip_address=ip_address)
-    nec.source_rgb2()
-    nec.update()
+    asyncio.run(nec.source_rgb2())
+    asyncio.run(nec.update())
     nec.print_status(json)
 
 @click.command()
@@ -64,8 +64,8 @@ def rgb2(ip_address, name, json):
 def rgb3(ip_address, name, json):
     """Select input rgb3 (DVI)"""
     nec = Nec_Beamer(name=name, ip_address=ip_address)
-    nec.source_rgb3()
-    nec.update()
+    asyncio.run(nec.source_rgb3())
+    asyncio.run(nec.update())
     nec.print_status(json)
 
 
@@ -76,7 +76,7 @@ def rgb3(ip_address, name, json):
 def status(ip_address, name, json):
     """Update the Beamer"""
     nec = Nec_Beamer(name=name, ip_address=ip_address)
-    nec.update()
+    asyncio.run(nec.update())
     nec.print_status(json)
 
 
@@ -87,8 +87,8 @@ def status(ip_address, name, json):
 def composite(ip_address, name, json):
     """Select input comp (Component)"""
     nec = Nec_Beamer(name=name, ip_address=ip_address)
-    nec.source_comp()
-    nec.update()
+    asyncio.run(nec.source_comp())
+    asyncio.run(nec.update())
     nec.print_status(json)
 
 
@@ -99,8 +99,8 @@ def composite(ip_address, name, json):
 def s_video(ip_address, name, json):
     """Select input svid (S-Video)"""
     nec = Nec_Beamer(name=name, ip_address=ip_address)
-    nec.source_svid()
-    nec.update()
+    asyncio.run(nec.source_svid())
+    asyncio.run(nec.update())
     nec.print_status(json)
 
 
@@ -111,8 +111,8 @@ def s_video(ip_address, name, json):
 def video(ip_address, name, json):
     """Select input video (Video)"""
     nec = Nec_Beamer(name=name, ip_address=ip_address)
-    nec.source_vidn()
-    nec.update()
+    asyncio.run(nec.source_vidn())
+    asyncio.run(nec.update())
     nec.print_status(json)
 
 # add a verbose option to cli group
@@ -132,6 +132,8 @@ def cli(ctx, verbose, debug, json):
 
     Web Interface is Copyright (C) NEC Viewtechnology, Ltd. 2002-2006
 
+    This script should be a drop-in replacement for the NEC Beamer
+    in asyncio-necbeamer.
 
     """
     setup_verbose_logging(verbose, debug)
