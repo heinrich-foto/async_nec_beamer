@@ -11,6 +11,7 @@ IP_ADDRESS = "192.168.0.175"
 
 _logger = logging.getLogger("async_nec_beamer")
 
+
 @click.command()
 @click.option("--ip_address", default=IP_ADDRESS, help="IP Address of the Beamer")
 @click.option("--name", default=NAME, help="Name of the Beamer")
