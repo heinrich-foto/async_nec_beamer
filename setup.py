@@ -1,7 +1,7 @@
 from setuptools import setup
 
 setup(name='async_nec_beamer',
-      version='0.1.5',
+      version='0.2.0',
       description='NEC Beamer Web Interface Wrapper (Async)',
       url='https://github.com/heinrich-foto/async_nec_beamer',
       author='Heinrich-Foto',
