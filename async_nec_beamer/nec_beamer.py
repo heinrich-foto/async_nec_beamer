@@ -1,5 +1,5 @@
 #!/usr/bin/env python
-
+import inspect
 import logging
 import re
 from datetime import datetime
@@ -122,6 +122,19 @@ class Nec_Beamer:
             self._is_on = True
         else:
             _logger.error(f"Error updating NEC Beamer: %s", response.status)
+            _logger.error("power_on*.gif not found in response.")
+            if _logger.level == logging.DEBUG:
+                _logger.debug(f"called from %s", inspect.stack()[1].function)
+                # get all "gif" from response.text
+                all_gif = re.findall("gif", html)
+                if len(all_gif) > 0:
+                    _logger.debug(f"all gif from response: %s", all_gif)
+                else:
+                    _logger.debug(f"no gif from response\n=====================")
+                    # indent the logging html output by 4 spaces
+                    _logger.debug(
+                        "\n".join(["HTML    " + i for i in html.split("\n")])
+                    )
             return False
 
         # parse response.text for lamp life remaining, lamp hours, filter hours, projector hours used
@@ -224,6 +237,7 @@ class Nec_Beamer:
         return self._is_available
 
     async def turn_on(self):
+        """Turn the device on."""
         response = await self.__send_command("power_on")
         _logger.debug(f"Response from NEC Beamer: %s", response)
 
@@ -235,6 +249,7 @@ class Nec_Beamer:
             _logger.error(f"Error turning on NEC Beamer: %s", response.status)
 
     async def turn_off(self):
+        """Turn the device off."""
         response = await self.__send_command("power_off")
 
         if response.status == 200:
@@ -253,13 +268,17 @@ class Nec_Beamer:
             else:
                 self._is_on = False
                 self._is_available = False
-                _logger.error(f"Error updating NEC Beamer: %s", response.status)
+                _logger.error(f"Error in updating NEC Beamer with HTTP-Status Code %s."
+                              f" Beamer is not available.", response.status)
+                _logger.debug(f"Response: %s", response)
+                _logger.debug(f"called from: %s", inspect.stack()[1].function)
         except AttributeError as e:
             self._is_on = False
             self._is_available = False
             _logger.error(f"Error in updating NEC Beamer. Cannot connect.")
             _logger.debug(f"AttributeError: %s", e)
             _logger.debug(f"Response: %s", response)
+            _logger.debug(f"called from: %s", inspect.stack()[1].function)
 
     @property
     def lamp_life_remaining(self):
@@ -278,6 +297,7 @@ class Nec_Beamer:
         return self._projektor_hours_used
 
     async def source_rgb1(self):
+        """Switch to VGA-Input"""
         response = await self.__send_command("source_rgb1")
         try:
             if response.status == 200:
@@ -290,6 +310,7 @@ class Nec_Beamer:
             _logger.debug(f"Response: %s", response)
 
     async def source_rgb2(self):
+        """Switch to BNC-Input"""
         response = await self.__send_command("source_rgb2")
         try:
             if response.status == 200:
@@ -302,6 +323,7 @@ class Nec_Beamer:
             _logger.debug(f"Response: %s", response)
 
     async def source_rgb3(self):
+        """Switch to DVI-Input"""
         response = await self.__send_command("source_rgb3")
         try:
             if response.status == 200:
@@ -314,6 +336,7 @@ class Nec_Beamer:
             _logger.debug(f"Response: %s", response)
 
     async def source_comp(self):
+        """Switch to Component-Input"""
         response = await self.__send_command("source_comp")
         try:
             if response.status == 200:
@@ -374,6 +397,7 @@ class Nec_Beamer:
         response = await self.__send_command("vol_dw")
 
     async def mute(self):
+        """Mute/Unmute all output of NEC Beamer"""
         await self.update()
         if self._all_muted:
             _logger.debug(f"Unmute")
@@ -392,6 +416,7 @@ class Nec_Beamer:
             _logger.debug(f"Response: %s", response)
 
     async def mute_picture(self):
+        """Mute/Unmute Picture (and Sound?) of NEC Beamer"""
         await self.update()
         if self._muted["pic"]:
             _logger.debug(f"Unmute Picture")
@@ -410,6 +435,7 @@ class Nec_Beamer:
             _logger.debug(f"Response: %s", response)
 
     async def mute_osd(self):
+        """Mute/Unmute OSD of NEC Beamer"""
         await self.update()
         if self._muted["osd"]:
             _logger.debug(f"Unmute OSD")
@@ -428,6 +454,7 @@ class Nec_Beamer:
             _logger.debug(f"Response: %s", response)
 
     async def mute_audio(self):
+        """Mute/Unmute Audio of NEC Beamer"""
         await self.update()
         if self._muted["snd"]:
             _logger.debug(f"Unmute Audio")
@@ -446,12 +473,16 @@ class Nec_Beamer:
             _logger.debug(f"Response: %s", response)
 
     def __repr__(self) -> str:
-        return f"Nec_Beamer({self._ip_address}, {self._name})"
+        return f"Nec_Beamer(\'{self._ip_address}\', \'{self._name}\')"
 
     def __str__(self) -> str:
-        return f"Nec_Beamer({self._ip_address}, {self._name})"
+        if self.__json:
+            return f"{self.__json_dict()}"
+        else:
+            return f"{self.__text()}"
 
     def __json_dict(self) -> dict:
+        """Returns the status of the beamer in a JSON format"""
         try:
             selected_source = [key for key, value in self._sources.items() if value is True][0]
         except IndexError:
@@ -473,23 +504,28 @@ class Nec_Beamer:
         }
         return json_dict
 
-    def print_status(self, json=False):
+    def __text(self):
+        """Prints the status of the beamer in a human-readable format"""
+        return f"""
+        Name: {self._name}
+        IP Address: {self._ip_address}
+        Is On: {self._is_on}
+        Is Available: {self._is_available}
+            Lamp Life Remaining: {self._lamp_life_remaining}
+            Lamp Hours: {self._lamp_hours}
+            Filter Hours: {self._filter_hours}
+            Projektor Hours Used: {self._projektor_hours_used}
+            Is Muted All: {self._all_muted}
+            Is Muted Picture: {self._muted["pic"]}
+            Is Muted OSD: {self._muted["osd"]}
+            Is Muted Audio: {self._muted["snd"]}
+            Selected Source: {self._selected_source}
+        """
 
+    def print_status(self, json=False):
+        """Prints the status of the beamer in a human-readable format or in a JSON format"""
         if json or self.__json:
             print(json_lib.dumps(self.__json_dict(), indent=4))
             _logger.debug(json_lib.dumps(self.__json_dict(), indent=4, sort_keys=True))
             return
-        print(f"Name: {self._name}")
-        print(f"IP Address: {self._ip_address}")
-        print(f"Is On: {self._is_on}")
-        print(f"Is Available: {self._is_available}")
-        print(f"Lamp Life Remaining: {self._lamp_life_remaining}")
-        print(f"Lamp Hours: {self._lamp_hours}")
-        print(f"Filter Hours: {self._filter_hours}")
-        print(f"Projektor Hours Used: {self._projektor_hours_used}")
-        print(f"Is Muted All: {self._all_muted}")
-        print(f"Is Muted Picture: {self._muted['pic']}")
-        print(f"Is Muted OSD: {self._muted['osd']}")
-        print(f"Is Muted Audio: {self._muted['snd']}")
-        print(f"Selected Source: {self._selected_source}")
-
+        print(self.__text())
