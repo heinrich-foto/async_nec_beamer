@@ -1,5 +1,6 @@
 #!/usr/bin/env python
 import inspect
+import ipaddress
 import logging
 import re
 from datetime import datetime
@@ -12,6 +13,7 @@ _logger = logging.getLogger("async_nec_beamer")
 # Default values for the NEC Beamer
 NAME = "NEC Beamer"
 IP_ADDRESS = "192.168.0.175"
+TIMEOUT = 5*60  # 5 minutes
 
 
 class DummyResponse:
@@ -20,11 +22,21 @@ class DummyResponse:
 
 
 class Nec_Beamer:
-    def __init__(self, ip_address, name) -> None:
+    def __init__(self, ip_address=IP_ADDRESS, name=NAME, timeout=TIMEOUT) -> None:
+        # check if ip_address is a valid IP Address (v4 and v6)
+        if not ipaddress.ip_address(ip_address):
+            raise ValueError("ip_address is not a valid IP Address")
+        # check if name is a string
+        if not isinstance(name, str):
+            raise ValueError("name is not a string")
+        # check if timeout is an integer
+        if not isinstance(timeout, int) and timeout >= 0:
+            raise ValueError("timeout is not an integer")
 
-        self._ip_address = ip_address if ip_address else IP_ADDRESS
+        self._ip_address = ip_address
+        self._timeout = aiohttp.ClientTimeout(total=timeout)
         self._is_on = False
-        self._name = name if isinstance(name, str) else "NEC Beamer"
+        self._name = name
         self._is_available = False
         self._lamp_life_remaining = 0  # top.statusF.document.stat.textfield.value='81';
         self._lamp_hours = 0  # top.statusF.document.stat.textfield2.value='0390';
@@ -102,9 +114,8 @@ class Nec_Beamer:
         url = f"http://{self._ip_address}{command}"
         _logger.info(f"with this URL: %s", url)
 
-        timeout = aiohttp.ClientTimeout(total=10, connect=5, sock_connect=5, sock_read=5)
         try:
-            async with aiohttp.ClientSession(timeout=timeout) as session:
+            async with aiohttp.ClientSession(timeout=self._timeout) as session:
                 async with session.get(url) as response:
                     _logger.debug("Response Status: %s", response.status)
                     _logger.debug("Response Headers: %s", response.headers)
