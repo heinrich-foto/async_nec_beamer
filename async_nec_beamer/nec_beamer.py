@@ -97,14 +97,18 @@ class Nec_Beamer:
         url = f"http://{self._ip_address}{command}"
         _logger.info(f"with this URL: %s", url)
 
-        async with aiohttp.ClientSession() as session:
-            async with session.get(url) as response:
-                _logger.debug("Response Status: %s", response.status)
-                _logger.debug("Response Headers: %s", response.headers)
-                html = await response.text()
-                # response = requests.get(url, timeout=5)
-                _logger.debug(f"Response from NEC Beamer: %s", html[:15])
-
+        timeout = aiohttp.ClientTimeout(total=10, connect=5, sock_connect=5, sock_read=5)
+        try:
+            async with aiohttp.ClientSession(timeout=timeout) as session:
+                async with session.get(url) as response:
+                    _logger.debug("Response Status: %s", response.status)
+                    _logger.debug("Response Headers: %s", response.headers)
+                    html = await response.text()
+                    # response = requests.get(url, timeout=5)
+                    _logger.debug(f"Response from NEC Beamer: %s", html[:15])
+        except aiohttp.ServerTimeoutError as e:
+            _logger.error(f"Connection timed out: %s", e)
+            return
         self._is_available = True
         _logger.debug(f"set is_available to %s", self._is_available)
         return response
