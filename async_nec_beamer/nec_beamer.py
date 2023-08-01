@@ -24,9 +24,9 @@ class Nec_Beamer:
         self._lamp_life_remaining = 0  # top.statusF.document.stat.textfield.value='81';
         self._lamp_hours = 0  # top.statusF.document.stat.textfield2.value='0390';
         self._filter_hours = 0  # top.statusF.document.stat.textfield4.value='0396';
-        self._projektor_hours_used = (
-            0  # top.statusF.document.stat.textfield6.value='0019';
-        )
+        self._message_error_status = ""  # top.statusF.document.stat.textfield5.value='0000';
+        self._projektor_hours_used = 0  # top.statusF.document.stat.textfield6.value='0019';
+
         self.__json = False
 
         self._muted = {
@@ -109,11 +109,12 @@ class Nec_Beamer:
         _logger.debug(f"set is_available to %s", self._is_available)
         return response
 
-    async def __check_response_status_and_update(self, response):
+    async def __check_response_status_and_update(self, response) -> bool:
         if response.status != 200:
             _logger.error(
                 f"Error sending command to NEC Beamer: %s", response.status
             )
+            _logger.debug(f"  called from %s", inspect.stack()[1].function)
             return False
         html = await response.text()
         if "power_on_b.gif" and "power_off_g.gif" in html:
@@ -124,7 +125,7 @@ class Nec_Beamer:
             _logger.error(f"Error updating NEC Beamer: %s", response.status)
             _logger.error("power_on*.gif not found in response.")
             if _logger.level == logging.DEBUG:
-                _logger.debug(f"called from %s", inspect.stack()[1].function)
+                _logger.debug(f"  called from %s", inspect.stack()[1].function)
                 # get all "gif" from response.text
                 all_gif = re.findall("gif", html)
                 if len(all_gif) > 0:
@@ -166,6 +167,11 @@ class Nec_Beamer:
                 "top.statusF.document.stat.textfield6.value="
             )[1].split(";")[0]
 
+        if "top.statusF.document.stat.textfield5.value=" in html:
+            self._message_error_status = html.split(
+                "top.statusF.document.stat.textfield5.value="
+            )[1].split(";")[0]
+
         # clean up values and convert to int if possible (values are like: '81')
 
         # get all /images/*_a.gif files and check if they are in the response.text
@@ -202,7 +208,9 @@ class Nec_Beamer:
 
         def __clean_value(value):
             if isinstance(value, str):
-                value = value.replace("'", "").replace(" ", "")
+                value = value.replace("'", "").replace('"', "")
+                # remove leading and trailing spaces
+                value = value.strip()
             if value == "true" or value == "True":
                 return True
             elif value == "false" or value == "False":
@@ -221,7 +229,11 @@ class Nec_Beamer:
         self._projektor_hours_used = __clean_value(self._projektor_hours_used)
         self._is_available = __clean_value(self._is_available)
         self._is_on = __clean_value(self._is_on)
+        self._message_error_status = __clean_value(self._message_error_status)
 
+        # if message_error_status is not "Normal operation" (or empty) log it as critical
+        if self._message_error_status != "Normal operation" and self._message_error_status != "":
+            _logger.critical(f"NEC Beamer has an Error status message: %s", self._message_error_status)
         return True
 
     @property
@@ -271,14 +283,14 @@ class Nec_Beamer:
                 _logger.error(f"Error in updating NEC Beamer with HTTP-Status Code %s."
                               f" Beamer is not available.", response.status)
                 _logger.debug(f"Response: %s", response)
-                _logger.debug(f"called from: %s", inspect.stack()[1].function)
+                _logger.debug(f"  called from: %s", inspect.stack()[1].function)
         except AttributeError as e:
             self._is_on = False
             self._is_available = False
             _logger.error(f"Error in updating NEC Beamer. Cannot connect.")
             _logger.debug(f"AttributeError: %s", e)
             _logger.debug(f"Response: %s", response)
-            _logger.debug(f"called from: %s", inspect.stack()[1].function)
+            _logger.debug(f"  called from: %s", inspect.stack()[1].function)
 
     @property
     def lamp_life_remaining(self):
@@ -498,6 +510,7 @@ class Nec_Beamer:
                 "lamp_hours": self._lamp_hours,
                 "filter_hours": self._filter_hours,
                 "projektor_hours_used": self._projektor_hours_used,
+                "error_status": self._message_error_status,
             },
             "muted": self._muted,
             "selected-source": selected_source,
@@ -506,21 +519,20 @@ class Nec_Beamer:
 
     def __text(self):
         """Prints the status of the beamer in a human-readable format"""
-        return f"""
-        Name: {self._name}
-        IP Address: {self._ip_address}
-        Is On: {self._is_on}
-        Is Available: {self._is_available}
-            Lamp Life Remaining: {self._lamp_life_remaining}
-            Lamp Hours: {self._lamp_hours}
-            Filter Hours: {self._filter_hours}
-            Projektor Hours Used: {self._projektor_hours_used}
-            Is Muted All: {self._all_muted}
-            Is Muted Picture: {self._muted["pic"]}
-            Is Muted OSD: {self._muted["osd"]}
-            Is Muted Audio: {self._muted["snd"]}
-            Selected Source: {self._selected_source}
-        """
+        return f"""Name: {self._name}
+IP Address: {self._ip_address}
+Is On: {self._is_on}
+Is Available: {self._is_available}
+    Lamp Life Remaining: {self._lamp_life_remaining}
+    Lamp Hours: {self._lamp_hours}
+    Filter Hours: {self._filter_hours}
+    Projektor Hours Used: {self._projektor_hours_used}
+    Message: {self._message_error_status}
+Is Muted All: {self._all_muted}
+    Is Muted Picture: {self._muted["pic"]}
+    Is Muted OSD: {self._muted["osd"]}
+    Is Muted Audio: {self._muted["snd"]}
+Selected Source: {self._selected_source}"""
 
     def print_status(self, json=False):
         """Prints the status of the beamer in a human-readable format or in a JSON format"""
