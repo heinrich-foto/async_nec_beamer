@@ -14,6 +14,11 @@ NAME = "NEC Beamer"
 IP_ADDRESS = "192.168.0.175"
 
 
+class DummyResponse:
+    def __init__(self, status):
+        self.status = status
+
+
 class Nec_Beamer:
     def __init__(self, ip_address, name) -> None:
 
@@ -106,9 +111,12 @@ class Nec_Beamer:
                     html = await response.text()
                     # response = requests.get(url, timeout=5)
                     _logger.debug(f"Response from NEC Beamer: %s", html[:15])
-        except aiohttp.ServerTimeoutError as e:
+        except (aiohttp.ServerTimeoutError, aiohttp.ClientConnectorError) as e:
             _logger.error(f"Connection timed out: %s", e)
-            return
+            # AttributeError: 'NoneType' object has no attribute 'status'
+            # create a dummy response object with only a status attribute
+            response = DummyResponse(status=408)
+            return response
         self._is_available = True
         _logger.debug(f"set is_available to %s", self._is_available)
         return response
@@ -545,3 +553,4 @@ Selected Source: {self._selected_source}"""
             _logger.debug(json_lib.dumps(self.__json_dict(), indent=4, sort_keys=True))
             return
         print(self.__text())
+        _logger.debug(self.__text())
