@@ -105,6 +105,10 @@ class Nec_Beamer:
     def _all_muted(self):
         return all(self._muted.values())
 
+    @property
+    def muted(self):
+        return self._all_muted
+
     async def __send_command(self, command) -> aiohttp.ClientResponse:
         if command not in self._commands:
             _logger.error(f"Command %s not found", command)
