@@ -109,6 +109,39 @@ class Nec_Beamer:
     def muted(self):
         return self._all_muted
 
+    @property
+    def picture_muted(self) -> bool:
+        """True if the picture is muted (typically black screen, lamp may stay on)."""
+        return self._muted["pic"]
+
+    async def set_picture_mute(self, mute: bool) -> None:
+        """Explicitly mute or unmute picture (black vs. visible image) without toggling.
+
+        Projector power is unchanged; call turn_on/turn_off separately.
+        """
+        await self.update()
+        if mute:
+            if self._muted["pic"]:
+                return
+            response = await self.__send_command("mutePic")
+        else:
+            if not self._muted["pic"]:
+                return
+            response = await self.__send_command("unmutePic")
+        try:
+            if response and response.status == 200:
+                await self.update()
+            elif response:
+                _logger.error(
+                    "Error setting picture mute=%s on NEC Beamer: %s",
+                    mute,
+                    response.status,
+                )
+        except AttributeError as e:
+            _logger.error("Error setting picture mute on NEC Beamer. Cannot connect.")
+            _logger.debug("AttributeError: %s", e)
+            _logger.debug("Response: %s", response)
+
     async def __send_command(self, command) -> aiohttp.ClientResponse:
         if command not in self._commands:
             _logger.error(f"Command %s not found", command)
